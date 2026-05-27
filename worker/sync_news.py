@@ -16,10 +16,17 @@ DB_PATH = "/Users/rio/tesla-timeline-tracker/db/tesla_tracker.db"
 
 # Target handles and feeds
 RSS_FEEDS = {
-    "Electrek": "https://electrek.co/guides/tesla/feed/",
-    "Teslarati": "https://www.teslarati.com/feed/",
-    "CleanTechnica": "https://cleantechnica.com/category/tesla/feed/",
-    "Reddit": "https://www.reddit.com/r/teslamotors/new/.rss"
+    "Electrek (Tesla)": "https://electrek.co/guides/tesla/feed/",
+    "Teslarati (Tesla)": "https://www.teslarati.com/category/tesla/feed/",
+    "Teslarati (SpaceX)": "https://www.teslarati.com/category/spacex/feed/",
+    "Teslarati (Starlink)": "https://www.teslarati.com/tag/starlink/feed/",
+    "Reddit (/r/teslamotors)": "https://www.reddit.com/r/teslamotors/new/.rss"
+}
+
+YOUTUBE_CHANNELS = {
+    "SpaceX (YouTube)": "https://www.youtube.com/feeds/videos.xml?channel_id=UCtI0Hodo5o5dUb67FeUjDeA",
+    "Tesla (YouTube)": "https://www.youtube.com/feeds/videos.xml?channel_id=UC5WjFrtBdufl6CZojX3D8dQ",
+    "Everyday Astronaut (YouTube)": "https://www.youtube.com/feeds/videos.xml?channel_id=UC6uKrU_WqJ1R2HMTY3LIx5Q"
 }
 
 TWITTER_HANDLES = ["elonmusk", "Tesla", "SawyerMerritt"]
@@ -249,7 +256,7 @@ def run_local_mock_ai(title, content, source_name, active_topics):
     text = f"{title} {content}".lower()
     
     # 1. Reject filter (Noise reduction)
-    is_relevant = any(kw in text for kw in ["tesla", "fsd", "autopilot", "musk", "model s", "model x", "model 3", "model y", "cybertruck", "giga", "supercharger", "juniper", "cybercab", "robotaxi", "spacex", "starlink", "starship", "falcon", "satellite"])
+    is_relevant = any(kw in text for kw in ["tesla", "fsd", "autopilot", "musk", "model s", "model x", "model 3", "model y", "cybertruck", "giga", "supercharger", "juniper", "cybercab", "robotaxi", "spacex", "starlink", "starship", "falcon", "satellite", "rocket", "orbit", "video"])
     if not is_relevant:
         return "REJECT"
     
@@ -261,7 +268,7 @@ def run_local_mock_ai(title, content, source_name, active_topics):
     category = "Corporate"
     if any(kw in text for kw in ["starlink", "satellite", "constellation"]):
         category = "Starlink"
-    elif any(kw in text for kw in ["spacex", "starship", "falcon", "dragon", "booster", "orbit"]):
+    elif any(kw in text for kw in ["spacex", "starship", "falcon", "dragon", "booster", "orbit", "rocket"]):
         category = "SpaceX"
     elif any(kw in text for kw in ["fsd", "autopilot", "v12", "supervised", "self-driving"]):
         category = "FSD & Autopilot"
@@ -280,7 +287,6 @@ def run_local_mock_ai(title, content, source_name, active_topics):
         t_title = topic["title"].lower()
         t_summary = topic["summary"].lower()
         
-        # Check semantic keywords overlapping
         keywords = []
         if "fsd" in text: keywords.append("fsd")
         if "juniper" in text: keywords.append("juniper")
@@ -328,7 +334,6 @@ def run_local_mock_ai(title, content, source_name, active_topics):
             "image_url": image_url
         }
     else:
-        # Create a new topic but use the dynamic quick_take and full_details for its first timeline event
         title_en = "Tesla Technical and Operational Milestone"
         summary_en = "Tesla has achieved major technical milestones recently. Industry analysts point out that Tesla's continuous software iteration, gigafactory output optimizations, and core energy storage scaling have consolidated its leadership position. These milestones highlight the automaker's long-term competitive moat in software development, quick factory adaptation, and supply chain vertical integration."
 
@@ -366,7 +371,7 @@ def process_item_with_ai(title, content, source_name, source_url, active_topics)
     Attempts OpenAI, but falls back gracefully and flawlessly to Local Mock AI.
     """
     system_prompt = """You are an elite aerospace and automotive news aggregator AI.
-Your job is to process, clean, and cluster incoming media articles and social posts into structured events.
+Your job is to process, clean, and cluster incoming media articles, YouTube videos, and social posts into structured events.
 Categories have been expanded to include Starlink and SpaceX.
 You must adhere to these strict rules:
 1. [FILTER NOISE]: If the content is unrelated to Tesla, FSD, SpaceX, Starlink, Elon Musk, or high-tech space/cellular technologies, return "REJECT". If it is personal gossip, unverified memes, or daily chatter with no industry value, return "REJECT".
@@ -473,6 +478,54 @@ def fetch_rss_items():
             
     return all_items
 
+def fetch_youtube_items():
+    """Fetches video uploads from target YouTube channels using native YouTube RSS feeds"""
+    youtube_items = []
+    
+    for source, url in YOUTUBE_CHANNELS.items():
+        print(f"Fetching YouTube Feed for {source}... ")
+        try:
+            resp = requests.get(url, headers=HEADERS, timeout=10)
+            if resp.status_code != 200:
+                print(f"Failed to fetch {source} YouTube feed (HTTP {resp.status_code})")
+                continue
+                
+            feed = feedparser.parse(resp.content)
+            
+            for entry in feed.entries[:5]:  # Take latest 5 videos per channel
+                title = entry.get("title", "")
+                link = entry.get("link", "")
+                summary = entry.get("summary", "") or entry.get("description", "")
+                
+                # Fetch maximum resolution YouTube video cover thumbnail directly from video ID!
+                yt_video_id = entry.get("yt_videoid")
+                img_url = None
+                if yt_video_id:
+                    img_url = f"https://img.youtube.com/vi/{yt_video_id}/maxresdefault.jpg"
+                else:
+                    if "media_thumbnail" in entry and len(entry.media_thumbnail) > 0:
+                        img_url = entry.media_thumbnail[0].get("url")
+                
+                pub_parsed = entry.get("published_parsed")
+                timestamp = int(time.mktime(pub_parsed)) if pub_parsed else int(time.time())
+                
+                soup_text = BeautifulSoup(summary, "html.parser").get_text() if summary else ""
+                
+                youtube_items.append({
+                    "title": f"Video: {title}",
+                    "content": f"[Video Description] {soup_text[:500]}",
+                    "source_name": "YouTube",
+                    "source_url": link,
+                    "image_url": img_url,
+                    "timestamp": timestamp,
+                    "raw_content": summary
+                })
+                print(f"  [YouTube] Scraped video: \"{title[:40]}...\"")
+        except Exception as e:
+            print(f"Error fetching YouTube feed from {source}: {e}")
+            
+    return youtube_items
+
 def fetch_twitter_items():
     """Simulates/Scrapes Twitter feeds."""
     twitter_items = []
@@ -568,7 +621,7 @@ def fetch_twitter_items():
 def sync():
     """Main pipeline to crawl, clean, cluster, and insert data."""
     print("=========================================")
-    print("Starting Tesla & Space Timeline Sync Pipeline...")
+    print("Starting Tesla, Space & YouTube Sync Pipeline...")
     print("=========================================")
     
     db = DatabaseAdapter()
@@ -578,11 +631,12 @@ def sync():
     
     items = []
     items.extend(fetch_rss_items())
+    items.extend(fetch_youtube_items())
     items.extend(fetch_twitter_items())
     
     items.sort(key=lambda x: x["timestamp"])
     
-    print(f"\nProcessing {len(items)} news/social items...")
+    print(f"\nProcessing {len(items)} news, video & social items...")
     
     created_count = 0
     appended_count = 0
@@ -596,7 +650,6 @@ def sync():
         img_url = item["image_url"]
         ts = item["timestamp"]
         
-        # Check if already imported
         row = db.fetchone("SELECT id FROM timeline_events WHERE source_url = ?", (url,))
         if row:
             continue
@@ -604,7 +657,7 @@ def sync():
         print(f"[{index+1}/{len(items)}] Cleaning item: \"{title[:40]}...\" from {source}")
         
         actual_img = img_url
-        if source not in ["X(Twitter)", "Reddit"]:
+        if source not in ["X(Twitter)", "Reddit", "YouTube"]:
             og_img = fetch_og_image(url)
             if og_img:
                 actual_img = og_img
