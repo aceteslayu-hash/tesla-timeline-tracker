@@ -29,29 +29,106 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
+def parse_hrana_val(v):
+    t = v.get("type")
+    if t == "null":
+        return None
+    elif t in ["integer", "float"]:
+        val_str = str(v.get("value", "0"))
+        if "." in val_str:
+            return float(val_str)
+        return int(val_str)
+    return v.get("value")
+
 class DatabaseAdapter:
-    """Unified Database Connection Handler supporting both local SQLite3 and Cloud Turso (libsql)"""
+    """Unified Database Connection Handler supporting local SQLite3 and Cloud Turso via pure-Python HTTP requests"""
     def __init__(self):
         self.url = os.environ.get("TURSO_DATABASE_URL")
         self.auth_token = os.environ.get("TURSO_AUTH_TOKEN")
         self.is_turso = bool(self.url)
         
         if self.is_turso:
-            print(f"Connecting to TURSO Cloud SQL Database: {self.url}")
-            import libsql_client
-            self.client = libsql_client.create_client_sync(self.url, auth_token=self.auth_token)
+            print(f"Connecting to TURSO Cloud SQL Database via Pure HTTP: {self.url}")
         else:
             print(f"Connecting to Local SQLite3 Database: {DB_PATH}")
             self.conn = sqlite3.connect(DB_PATH)
             self.conn.row_factory = sqlite3.Row
             
+    def _execute_turso_http(self, sql, params):
+        http_url = self.url
+        if http_url.startswith("libsql://"):
+            http_url = "https://" + http_url[9:]
+            
+        headers = {
+            "Authorization": f"Bearer {self.auth_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Map parameters to Hrana types
+        args = []
+        for p in params:
+            if p is None:
+                args.append({"type": "null"})
+            elif isinstance(p, bool):
+                args.append({"type": "integer", "value": "1" if p else "0"})
+            elif isinstance(p, int):
+                args.append({"type": "integer", "value": str(p)})
+            elif isinstance(p, float):
+                args.append({"type": "float", "value": str(p)})
+            else:
+                args.append({"type": "text", "value": str(p)})
+                
+        payload = {
+            "requests": [
+                {
+                    "type": "execute",
+                    "stmt": {
+                        "sql": sql,
+                        "args": args
+                    }
+                },
+                {
+                    "type": "close"
+                }
+            ]
+        }
+        
+        resp = requests.post(f"{http_url}/v2/pipeline", json=payload, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            raise Exception(f"Turso HTTP Error ({resp.status_code}): {resp.text}")
+            
+        res_data = resp.json()
+        exec_res = res_data["results"][0]
+        if exec_res["type"] == "error":
+            raise Exception(f"Turso SQL Error: {exec_res['error']['message']}")
+            
+        result = exec_res["response"]["result"]
+        cols = [c["name"] for c in result["cols"]]
+        
+        rows = []
+        for r in result["rows"]:
+            row_vals = []
+            for cell in r:
+                row_vals.append(parse_hrana_val(cell))
+            rows.append(dict(zip(cols, row_vals)))
+            
+        class LibsqlResult:
+            def __init__(self, rows, last_insert_id):
+                self.rows = rows
+                self.last_rowid = last_insert_id
+            def fetchall(self):
+                return self.rows
+            def fetchone(self):
+                return self.rows[0] if self.rows else None
+                
+        last_id = int(result.get("last_insert_rowid", "0"))
+        return LibsqlResult(rows, last_id)
+            
     def execute(self, sql, params=None):
         if params is None:
             params = []
         if self.is_turso:
-            # libsql-client-sync execute returns ResultSet
-            res = self.client.execute(sql, params)
-            return res
+            return self._execute_turso_http(sql, params)
         else:
             cursor = self.conn.cursor()
             cursor.execute(sql, params)
@@ -61,14 +138,8 @@ class DatabaseAdapter:
         if params is None:
             params = []
         if self.is_turso:
-            res = self.client.execute(sql, params)
-            out = []
-            for row in res.rows:
-                d = {}
-                for idx, col in enumerate(res.columns):
-                    d[col] = row[idx]
-                out.append(d)
-            return out
+            res = self._execute_turso_http(sql, params)
+            return res.fetchall()
         else:
             cursor = self.conn.cursor()
             cursor.execute(sql, params)
@@ -79,14 +150,8 @@ class DatabaseAdapter:
         if params is None:
             params = []
         if self.is_turso:
-            res = self.client.execute(sql, params)
-            if len(res.rows) == 0:
-                return None
-            row = res.rows[0]
-            d = {}
-            for idx, col in enumerate(res.columns):
-                d[col] = row[idx]
-            return d
+            res = self._execute_turso_http(sql, params)
+            return res.fetchone()
         else:
             cursor = self.conn.cursor()
             cursor.execute(sql, params)
@@ -274,7 +339,7 @@ def run_local_mock_ai(title, content, source_name, active_topics):
             summary_en = "SpaceX is pushing the boundaries of heavy space transport with rapid hardware and structural adjustments for its fully reusable Starship rocket. Following successful launchpad retrievals of Super Heavy booster stages, SpaceX is optimizing vehicle heat shielding, propellant transfer mechanics, and orbital engine ignitions to prepare for lunar and deep-space missions."
         elif "fsd" in text:
             title_en = "Tesla Rolls Out Expanded FSD Supervised Software Updates"
-            summary_en = "Tesla's Full Self-Driving (FSD Supervised) system has reached a key milestone with the rollout of its latest end-to-end neural network code. Unlike classical robotics setups with handcoded rules, this system makes decision-making exceptionally fluid, especially at complex intersections, multi-lane roundabouts, and busy pedestrian crossings. This expansion across North American fleets marks a critical inflection point in Tesla's quest for true autonomous driving, boosting market confidence."
+            summary_en = "Tesla's Full Self-Driving (FSD Supervised) system has reached a key milestone with the rollout of its latest end-to-end neural network code. Unlike classical robotics setups with hardcoded rules, this system makes decision-making exceptionally fluid, especially at complex intersections, multi-lane roundabouts, and busy pedestrian crossings. This expansion across North American fleets marks a critical inflection point in Tesla's quest for true autonomous driving, boosting market confidence."
         elif "juniper" in text or "model y" in text:
             title_en = "Tesla Model Y 'Juniper' Redesign Prototypes Spotted in Road Tests"
             summary_en = "Tesla's highly anticipated Model Y refresh, codenamed 'Juniper,' is generating major interest as camouflaged test vehicles are spotted on public roads. The redesign is expected to bring a refreshed exterior featuring front split-headlights, an aesthetic full-width light bar on the rear, and upgraded carbon interior designs with multi-color ambient lighting. As Tesla's best-selling car worldwide, the Juniper refresh is vital to securing its electric vehicle market dominance."
@@ -562,7 +627,6 @@ def sync():
                     result["meta_description"]
                 ))
                 
-                # Fetch created topic ID
                 topic_id_row = db.fetchone("SELECT id FROM topics WHERE title = ?", (result["title"],))
                 topic_id = topic_id_row["id"] if topic_id_row else None
                 
