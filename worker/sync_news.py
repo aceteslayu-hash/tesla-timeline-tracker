@@ -256,7 +256,7 @@ def run_local_mock_ai(title, content, source_name, active_topics):
     text = f"{title} {content}".lower()
     
     # 1. Reject filter (Noise reduction)
-    is_relevant = any(kw in text for kw in ["tesla", "fsd", "autopilot", "musk", "model s", "model x", "model 3", "model y", "cybertruck", "giga", "supercharger", "juniper", "cybercab", "robotaxi", "spacex", "starlink", "starship", "falcon", "satellite", "rocket", "orbit", "video"])
+    is_relevant = any(kw in text for kw in ["tesla", "fsd", "autopilot", "musk", "model s", "model x", "model 3", "model y", "cybertruck", "giga", "supercharger", "juniper", "cybercab", "robotaxi", "spacex", "starlink", "starship", "falcon", "satellite", "rocket", "orbit", "video", "software-update"])
     if not is_relevant:
         return "REJECT"
     
@@ -345,7 +345,7 @@ def run_local_mock_ai(title, content, source_name, active_topics):
             summary_en = "SpaceX is pushing the boundaries of heavy space transport with rapid hardware and structural adjustments for its fully reusable Starship rocket. Following successful launchpad retrievals of Super Heavy booster stages, SpaceX is optimizing vehicle heat shielding, propellant transfer mechanics, and orbital engine ignitions to prepare for lunar and deep-space missions."
         elif "fsd" in text:
             title_en = "Tesla Rolls Out Expanded FSD Supervised Software Updates"
-            summary_en = "Tesla's Full Self-Driving (FSD Supervised) system has reached a key milestone with the rollout of its latest end-to-end neural network code. Unlike classical robotics setups with hardcoded rules, this system makes decision-making exceptionally fluid, especially at complex intersections, multi-lane roundabouts, and busy pedestrian crossings. This expansion across North American fleets marks a critical inflection point in Tesla's quest for true autonomous driving, boosting market confidence."
+            summary_en = "Tesla's Full Self-Driving (FSD Supervised) system has reached a key milestone with the rollout of its latest end-to-end neural network code. Unlike classical robotics setups with handcoded rules, this system makes decision-making exceptionally fluid, especially at complex intersections, multi-lane roundabouts, and busy pedestrian crossings. This expansion across North American fleets marks a critical inflection point in Tesla's quest for true autonomous driving, boosting market confidence."
         elif "juniper" in text or "model y" in text:
             title_en = "Tesla Model Y 'Juniper' Redesign Prototypes Spotted in Road Tests"
             summary_en = "Tesla's highly anticipated Model Y refresh, codenamed 'Juniper,' is generating major interest as camouflaged test vehicles are spotted on public roads. The redesign is expected to bring a refreshed exterior featuring front split-headlights, an aesthetic full-width light bar on the rear, and upgraded carbon interior designs with multi-color ambient lighting. As Tesla's best-selling car worldwide, the Juniper refresh is vital to securing its electric vehicle market dominance."
@@ -526,6 +526,81 @@ def fetch_youtube_items():
             
     return youtube_items
 
+def fetch_notateslaapp_items():
+    """Directly scrapes the FSD-Beta news and release notes from Not A Tesla App"""
+    items = []
+    url = "https://www.notateslaapp.com/fsd-beta/"
+    print(f"Scraping Not A Tesla App from {url}...")
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        if resp.status_code != 200:
+            print(f"Failed to fetch Not A Tesla App (HTTP {resp.status_code})")
+            return items
+            
+        soup = BeautifulSoup(resp.content, "html.parser")
+        unique_links = {}
+        
+        for a in soup.find_all("a"):
+            href = a.get("href")
+            title = a.get_text().strip()
+            if href and "/news/" in href and title:
+                full_url = href
+                if not href.startswith("http"):
+                    full_url = "https://www.notateslaapp.com" + href
+                
+                # Deduplicate multiple links to the same page, keep longest text
+                if full_url not in unique_links or len(title) > len(unique_links[full_url]):
+                    unique_links[full_url] = title
+                    
+        # Process latest 5 unique articles to keep sync fast
+        for full_url, title in list(unique_links.items())[:5]:
+            print(f"  [Not A Tesla App] Crawling article details: \"{title[:45]}...\"")
+            
+            content_desc = ""
+            img_url = None
+            try:
+                detail_resp = requests.get(full_url, headers=HEADERS, timeout=5)
+                if detail_resp.status_code == 200:
+                    detail_soup = BeautifulSoup(detail_resp.content, "html.parser")
+                    # Extract og:image
+                    meta_img = detail_soup.find("meta", property="og:image") or detail_soup.find("meta", attrs={"name": "twitter:image"})
+                    if meta_img and meta_img.get("content"):
+                        img_url = meta_img.get("content").strip()
+                        
+                    # Extract lead paragraph text
+                    paragraphs = [p.get_text().strip() for p in detail_soup.find_all("p") if p.get_text()]
+                    if paragraphs:
+                        # Grab the longest/first substantial paragraph
+                        for p_text in paragraphs[:3]:
+                            if len(p_text) > 80:
+                                content_desc = p_text
+                                break
+                        if not content_desc:
+                            content_desc = paragraphs[0]
+            except Exception as ex:
+                print(f"    Warning: Failed to fetch detail content for {full_url}: {ex}")
+                
+            if not content_desc:
+                content_desc = f"Latest release notes, software features, and analysis regarding {title}."
+                
+            # Default timestamp is now minus a slight offset to preserve order
+            timestamp = int(time.time()) - 3600
+            
+            items.append({
+                "title": title,
+                "content": content_desc[:1000],
+                "source_name": "Not A Tesla App",
+                "source_url": full_url,
+                "image_url": img_url,
+                "timestamp": timestamp,
+                "raw_content": content_desc
+            })
+            
+    except Exception as e:
+        print(f"Error scraping Not A Tesla App: {e}")
+        
+    return items
+
 def fetch_twitter_items():
     """Simulates/Scrapes Twitter feeds."""
     twitter_items = []
@@ -632,6 +707,7 @@ def sync():
     items = []
     items.extend(fetch_rss_items())
     items.extend(fetch_youtube_items())
+    items.extend(fetch_notateslaapp_items())
     items.extend(fetch_twitter_items())
     
     items.sort(key=lambda x: x["timestamp"])
@@ -657,7 +733,7 @@ def sync():
         print(f"[{index+1}/{len(items)}] Cleaning item: \"{title[:40]}...\" from {source}")
         
         actual_img = img_url
-        if source not in ["X(Twitter)", "Reddit", "YouTube"]:
+        if source not in ["X(Twitter)", "Reddit", "YouTube", "Not A Tesla App"]:
             og_img = fetch_og_image(url)
             if og_img:
                 actual_img = og_img
@@ -668,6 +744,32 @@ def sync():
             rejected_count += 1
             continue
             
+        # Deduplication of identical facts across different sources
+        topic_id = None
+        if result["action"] == "APPEND":
+            topic_id = result["topic_id"]
+        
+        if topic_id:
+            existing_events = db.fetchall("SELECT quick_take FROM timeline_events WHERE topic_id = ?", (topic_id,))
+            is_duplicate_fact = False
+            for ev in existing_events:
+                ev_text = ev["quick_take"].lower()
+                new_text = result["quick_take"].lower()
+                
+                # Check Jaccard word overlap similarity
+                words_ev = set(re.findall(r'\w+', ev_text))
+                words_new = set(re.findall(r'\w+', new_text))
+                if words_ev and words_new:
+                    intersection = words_ev.intersection(words_new)
+                    similarity = len(intersection) / min(len(words_ev), len(words_new))
+                    if similarity > 0.65:  # more than 65% overlap in vocabulary
+                        is_duplicate_fact = True
+                        break
+            
+            if is_duplicate_fact:
+                print(f"  -> Skipped duplicate reporting fact: \"{result['quick_take'][:40]}...\"")
+                continue
+
         if result["action"] == "CREATE":
             try:
                 db.execute("""
@@ -708,7 +810,7 @@ def sync():
                 print(f"  [Error] Failed to insert topic: {e}")
                     
         elif result["action"] == "APPEND":
-            topic_id = result["topic_id"]
+            # If we reached here, it passed the Jaccard similarity check
             final_img = result.get("image_url") or actual_img
             
             db.execute("""
