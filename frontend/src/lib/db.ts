@@ -19,6 +19,7 @@ export function getDbClient(): Client {
 
 export interface Topic {
   id: number;
+  slug: string;
   title: string;
   summary: string;
   category: string;
@@ -58,6 +59,7 @@ export async function getAllTopics(): Promise<Topic[]> {
   const result = await client.execute(query);
   return result.rows.map((row) => ({
     id: Number(row.id),
+    slug: String(row.slug),
     title: String(row.title),
     summary: String(row.summary),
     category: String(row.category),
@@ -71,15 +73,16 @@ export async function getAllTopics(): Promise<Topic[]> {
   }));
 }
 
-export async function getTopicById(id: number | string): Promise<Topic | null> {
-  const query = `SELECT * FROM topics WHERE id = ?`;
+export async function getTopicBySlug(slug: string): Promise<Topic | null> {
+  const query = `SELECT * FROM topics WHERE slug = ?`;
 
   const client = getDbClient();
-  const result = await client.execute({ sql: query, args: [id] });
+  const result = await client.execute({ sql: query, args: [slug] });
   if (result.rows.length === 0) return null;
   const row = result.rows[0];
   return {
     id: Number(row.id),
+    slug: String(row.slug),
     title: String(row.title),
     summary: String(row.summary),
     category: String(row.category),

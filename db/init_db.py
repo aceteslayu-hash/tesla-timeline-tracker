@@ -16,10 +16,11 @@ def init_db():
     cursor.execute("DROP TABLE IF EXISTS timeline_events;")
     cursor.execute("DROP TABLE IF EXISTS topics;")
 
-    # Create topics table with editorial_article
+    # Create topics table with slug and editorial_article
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS topics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT NOT NULL UNIQUE,
         title TEXT NOT NULL UNIQUE,
         summary TEXT,
         category TEXT,
@@ -59,7 +60,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("Database and tables initialized successfully with editorial support!")
+    print("Database and tables initialized successfully with Slug and Editorial support!")
 
 if __name__ == "__main__":
     init_db()

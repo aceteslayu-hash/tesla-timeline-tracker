@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTopicById, getTimelineEventsByTopicId } from "@/lib/db";
+import { getTopicBySlug, getTimelineEventsByTopicId } from "@/lib/db";
 import { ArrowLeft, ExternalLink, MessageSquare, Globe, Clock, FileText, Sparkles, BookOpen } from "lucide-react";
 import { Metadata } from "next";
 
@@ -8,13 +8,13 @@ export const revalidate = 0;
 
 interface Props {
   params: {
-    id: string;
+    slug: string;
   };
 }
 
 // Dynamic SEO Metadata generation
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const topic = await getTopicById(params.id);
+  const topic = await getTopicBySlug(params.slug);
   if (!topic) {
     return {
       title: "Topic Not Found - Tesla Live Tracker",
@@ -98,7 +98,7 @@ function renderEditorial(text: string) {
 }
 
 export default async function NewsDetailPage({ params }: Props) {
-  const topic = await getTopicById(params.id);
+  const topic = await getTopicBySlug(params.slug);
   
   if (!topic) {
     return (
@@ -113,7 +113,7 @@ export default async function NewsDetailPage({ params }: Props) {
     );
   }
 
-  const events = await getTimelineEventsByTopicId(params.id);
+  const events = await getTimelineEventsByTopicId(topic.id);
 
   return (
     <div className="space-y-12">
@@ -255,7 +255,7 @@ export default async function NewsDetailPage({ params }: Props) {
                         </div>
                       )}
 
-                      {/* Cover Photo / Original Scraped Image */}
+                      {/* Cover Photo / Original Scraped Image with no-referrer to bypass hotlink block */}
                       {event.image_url && (
                         <div className="overflow-hidden rounded-lg bg-zinc-950 aspect-[16/9] w-full max-w-2xl border border-zinc-800/80 group-hover:border-zinc-700/80 transition-colors relative">
                           <img
@@ -263,6 +263,7 @@ export default async function NewsDetailPage({ params }: Props) {
                             alt="Event Visual"
                             className="h-full w-full object-cover opacity-90 hover:opacity-100 hover:scale-101 transition-all duration-500"
                             loading="lazy"
+                            referrerPolicy="no-referrer"
                           />
                         </div>
                       )}

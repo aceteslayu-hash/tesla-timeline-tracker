@@ -152,7 +152,7 @@ export default async function HomePage({ searchParams }: PageProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {topics.map((topic) => (
               <Link 
-                href={`/news/${topic.id}`} 
+                href={`/news/${topic.slug}`} 
                 key={topic.id}
                 className="group relative flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-900/50 hover:border-zinc-700 transition-all duration-300 shadow-xl"
               >
