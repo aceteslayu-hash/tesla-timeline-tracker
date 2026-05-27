@@ -24,6 +24,7 @@ export interface Topic {
   category: string;
   meta_title: string;
   meta_description: string;
+  editorial_article: string;
   created_at: string;
   updated_at: string;
   event_count?: number;
@@ -62,6 +63,7 @@ export async function getAllTopics(): Promise<Topic[]> {
     category: String(row.category),
     meta_title: String(row.meta_title),
     meta_description: String(row.meta_description),
+    editorial_article: row.editorial_article ? String(row.editorial_article) : "",
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
     event_count: Number(row.event_count),
@@ -83,6 +85,7 @@ export async function getTopicById(id: number | string): Promise<Topic | null> {
     category: String(row.category),
     meta_title: String(row.meta_title),
     meta_description: String(row.meta_description),
+    editorial_article: row.editorial_article ? String(row.editorial_article) : "",
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };

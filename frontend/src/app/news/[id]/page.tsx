@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTopicById, getTimelineEventsByTopicId } from "@/lib/db";
-import { ArrowLeft, ExternalLink, MessageSquare, Globe, Clock, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, ExternalLink, MessageSquare, Globe, Clock, FileText, Sparkles, BookOpen } from "lucide-react";
 import { Metadata } from "next";
 
 // Server components cache control - forces dynamic data fetching on each request
@@ -76,6 +76,27 @@ function formatEventTime(timestamp: number) {
   }
 }
 
+function renderEditorial(text: string) {
+  if (!text) return null;
+  const blocks = text.split("\n\n");
+  return (
+    <div className="space-y-4 text-zinc-300 leading-relaxed font-normal text-sm md:text-base">
+      {blocks.map((block, idx) => {
+        const trimmed = block.trim();
+        if (trimmed.startsWith("##")) {
+          return (
+            <h3 key={idx} className="text-base md:text-lg font-extrabold text-zinc-100 mt-6 border-b border-zinc-800 pb-2 flex items-center space-x-2">
+              <span className="w-1.5 h-4 bg-red-500 rounded-sm" />
+              <span>{trimmed.replace(/^##\s*/, "")}</span>
+            </h3>
+          );
+        }
+        return <p key={idx}>{trimmed}</p>;
+      })}
+    </div>
+  );
+}
+
 export default async function NewsDetailPage({ params }: Props) {
   const topic = await getTopicById(params.id);
   
@@ -128,6 +149,18 @@ export default async function NewsDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Original Editorial Article Deep-Dive */}
+      {topic.editorial_article && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6 md:p-8 space-y-5 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="flex items-center space-x-2 text-red-400 font-bold text-xs uppercase tracking-widest pb-3 border-b border-zinc-800/60">
+            <BookOpen className="w-4.5 h-4.5 text-red-500" />
+            <span>Exclusive Editorial Deep-Dive Analysis</span>
+          </div>
+          {renderEditorial(topic.editorial_article)}
+        </div>
+      )}
 
       {/* Timeline Section */}
       <div className="space-y-8">

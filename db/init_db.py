@@ -16,7 +16,7 @@ def init_db():
     cursor.execute("DROP TABLE IF EXISTS timeline_events;")
     cursor.execute("DROP TABLE IF EXISTS topics;")
 
-    # Create topics table
+    # Create topics table with editorial_article
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS topics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,12 +25,13 @@ def init_db():
         category TEXT,
         meta_title TEXT,
         meta_description TEXT,
+        editorial_article TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
 
-    # Create timeline_events table with full_details
+    # Create timeline_events table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS timeline_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +59,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("Database and tables initialized successfully with new schema!")
+    print("Database and tables initialized successfully with editorial support!")
 
 if __name__ == "__main__":
     init_db()

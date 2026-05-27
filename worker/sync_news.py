@@ -334,24 +334,99 @@ def run_local_mock_ai(title, content, source_name, active_topics):
             "image_url": image_url
         }
     else:
+        # Create a new topic but use the dynamic quick_take and full_details for its first timeline event
         title_en = "Tesla Technical and Operational Milestone"
         summary_en = "Tesla has achieved major technical milestones recently. Industry analysts point out that Tesla's continuous software iteration, gigafactory output optimizations, and core energy storage scaling have consolidated its leadership position. These milestones highlight the automaker's long-term competitive moat in software development, quick factory adaptation, and supply chain vertical integration."
+        
+        # High-quality precompiled original articles for SEO & Deep Analysis (Local Mock Fallback)
+        editorial_en = """## Strategic Industry Synthesis
+
+The latest technical updates from Tesla highlight a broader operational philosophy of rapid prototyping and software-defined scaling. By integrating highly responsive feedback loops across its manufacturing facilities, the company has bypassed standard multi-year product development phases common in legacy automotive operations.
+
+## Engineering Advantages
+
+At the core of this operational efficiency is a highly centralized compute architecture. Tesla continues to reduce wire harnesses, consolidate microcontrollers, and design proprietary chips in-house. This structural vertical integration ensures that software updates can deploy and optimize features globally on short notice, bypassing supplier-side coordination blocks.
+
+## Long-term Market Outlook
+
+As the energy storage division experiences high double-digit growth, the auto segment's technical innovations act as high-value reference designs. The convergence of unified neural networks, optimized battery packs, and gigafactory flexibility places the enterprise at a massive strategic advantage, maintaining its leading industry margins into the decade.
+"""
 
         if "starlink" in text:
             title_en = "Starlink Satellites Launch to Expand Global Cell-to-Satellite Trials"
             summary_en = "SpaceX is aggressively expanding its Starlink Direct-to-Cell network, launching specialized low Earth orbit satellites. This system aims to deliver ubiquitous text, voice, and data access directly to standard unmodified cellular phones in partner regions, effectively ending dead-zones in remote regions without cellular towers."
+            editorial_en = """## The Satellite Cellular Revolution
+
+SpaceX's ongoing launch campaign for Direct-to-Cell Starlink satellites marks a pivotal shift in telecommunications history. Rather than forcing consumers to purchase specialized satellite communication hardware, this architecture establishes direct links to standard unmodified cellular devices using standard LTE protocols.
+
+## Technical Milestones and Phased Array Technology
+
+The low Earth orbit satellites are equipped with highly advanced, large phased array antennas that emulate cellular towers in orbit. Partnering with major terrestrial carriers like T-Mobile, Rogers, and Optus, the space enterprise has demonstrated highly reliable, low-latency SMS transmittals. Upcoming upgrades are set to integrate voice and basic broadband data, bypassing standard line-of-sight terrestrial dead zones.
+
+## Market Disruption and Geopolitical Implications
+
+This ubiquitous constellation is positioned to completely disrupt legacy satellite communication models and rural telecom infrastructure projects. By providing reliable emergency and commercial coverage across vast oceans, remote deserts, and high-latitude zones, Starlink solidifies its position as a major strategic asset for global communication resilience.
+"""
         elif "spacex" in text or "starship" in text:
             title_en = "SpaceX Advances Starship Development for Next Orbital Flight Tests"
             summary_en = "SpaceX is pushing the boundaries of heavy space transport with rapid hardware and structural adjustments for its fully reusable Starship rocket. Following successful launchpad retrievals of Super Heavy booster stages, SpaceX is optimizing vehicle heat shielding, propellant transfer mechanics, and orbital engine ignitions to prepare for lunar and deep-space missions."
+            editorial_en = """## Re-engineering the Economics of Space Flight
+
+SpaceX's relentless testing of the Starship rocket at Starbase, Texas, is systematically dismantling traditional space access cost models. The successful catch of 230-foot Super Heavy booster stages using the mechanical chopstick arms at the launch tower represents a major structural leap toward rapid, low-cost reuse.
+
+## Starship V3 Architecture Upgrades
+
+The latest version of Starship features a stretched hull designed to carry significantly larger propellant loads, bringing payload capacity to low Earth orbit above 150 metric tons in fully reusable mode. Key modifications focus on hot-staging ring resilience, dry-cathode structural optimizations, and advanced active cooling tiles designed to survive extreme atmospheric re-entry friction.
+
+## Multi-planetary Logistics and Capital Moats
+
+As NASA maintains its HLS (Human Landing System) lunar program commitments, Starship is positioned as the primary heavy logistics backbone for upcoming lunar and Martian orbital runs. Concurrently, rumors of a potential SpaceX IPO create massive private capital interest, highlighting the company's insurmountable lead in deep-space engineering.
+"""
         elif "fsd" in text:
             title_en = "Tesla Rolls Out Expanded FSD Supervised Software Updates"
             summary_en = "Tesla's Full Self-Driving (FSD Supervised) system has reached a key milestone with the rollout of its latest end-to-end neural network code. Unlike classical robotics setups with handcoded rules, this system makes decision-making exceptionally fluid, especially at complex intersections, multi-lane roundabouts, and busy pedestrian crossings. This expansion across North American fleets marks a critical inflection point in Tesla's quest for true autonomous driving, boosting market confidence."
+            editorial_en = """## The Shift to End-to-End Neural Networks
+
+Tesla's recent unified FSD software updates represent a major paradigm shift in modern computer vision and robotics. By replacing hundreds of thousands of lines of explicit C++ code with end-to-end neural network models, the vehicle's driving behavior is learned directly from millions of high-quality human driving clips, rather than pre-programmed rules.
+
+## The Highway and City Unification
+
+The core achievement of the latest FSD releases is the complete unification of highway and city driving stacks. Previously, highway autopilot relied on legacy heuristics, causing jerky lane changes and abrupt braking. The newly integrated neural network manages high-speed freeway merges, lane-keeping, and complex exit lane selections with human-like smoothness, vastly reducing driver fatigue.
+
+## Data Flywheels and Computing Dominance
+
+With the FSD active fleet accumulating billions of real-world miles, Tesla possesses an insurmountable data moat. Powered by its Dojo supercomputer and massive clusters of GPUs, the company can quickly identify, clean, and train its networks on rare edge-case scenarios, solidifying its path toward L4 unsupervised autonomy.
+"""
         elif "juniper" in text or "model y" in text:
             title_en = "Tesla Model Y 'Juniper' Redesign Prototypes Spotted in Road Tests"
             summary_en = "Tesla's highly anticipated Model Y refresh, codenamed 'Juniper,' is generating major interest as camouflaged test vehicles are spotted on public roads. The redesign is expected to bring a refreshed exterior featuring front split-headlights, an aesthetic full-width light bar on the rear, and upgraded carbon interior designs with multi-color ambient lighting. As Tesla's best-selling car worldwide, the Juniper refresh is vital to securing its electric vehicle market dominance."
+            editorial_en = """## Maintaining Dominance in the Global Crossover Market
+
+The upcoming Model Y 'Juniper' refresh is one of the most critical product rollouts in Tesla's commercial history. As the highest-selling vehicle globally, the crossover utility vehicle must maintain its competitive edge against a massive wave of global electric vehicle offerings.
+
+## Interior Ergonomics and Manufacturing Innovations
+
+Spy photos indicate that the Juniper refresh will adopt the premium upgrades seen on the Model 3 'Highland' sedan. Expect the complete removal of steering column stalks in favor of steering wheel buttons, double-glazed acoustic glass for an exceptionally quiet cabin, multi-color customizable ambient light strips, and ventilated front seats. Structurally, the vehicle is set to use massive front and rear gigacastings to further cut cost and vehicle weight.
+
+## Power and Efficiency Tuning
+
+Beneath the cosmetic modifications, the Juniper refresh is expected to feature updated drive units and optimized battery pack enclosures. By integrating advanced aerodynamics with higher cell densities, the updated crossover is anticipated to yield a 5% to 8% range expansion on a single charge, maintaining its leading price-to-range value proposition.
+"""
         elif "cybertruck" in text:
             title_en = "Tesla Cybertruck Production Scales Up with Global Tours Ongoing"
             summary_en = "Tesla is rapidly ramping up Cybertruck manufacturing at Gigafactory Texas, with weekly output breaking historical records. Concurrently, the unique stainless steel pickup continues its highly publicized global tours in Asia and Europe, creating massive consumer interest. Despite regulatory hurdles regarding pedestrian impact in some markets, the vehicle's pioneering 48V architecture and structural innovations are set to influence future generations of Tesla models."
+            editorial_en = """## Overcoming the Toughest Manufacturing Hurdles
+
+The Cybertruck's ramp-up to volume production at Gigafactory Texas represents a monumental engineering victory. Working with ultra-hard cold-rolled stainless steel body panels required building entirely new manufacturing lines, stamping presses, and robotic welding setups in-house.
+
+## The 48V Architecture Shift
+
+While the external shell captures the headlines, the vehicle's true engineering breakthrough is the complete transition to a 48V low-voltage electrical architecture. By reducing current draw across vehicle systems, Tesla cut copper weight by over 70% and successfully integrated steer-by-wire controls. This steering wheel system reacts in milliseconds, offering effortless maneuverability despite the heavy structural pickup size.
+
+## Global Influence and Strategic Positioning
+
+As the Cybertruck embarks on popular tours in Asia and Europe, it serves as a powerful halo product for the entire brand. The engineering innovations verified on the truck's assembly line—including high-volume dry-cathode battery cells and megacasting designs—are being systematically implemented across Tesla's cheaper vehicle programs, drastically lowering future manufacturing costs.
+"""
 
         return {
             "action": "CREATE",
@@ -362,6 +437,7 @@ def run_local_mock_ai(title, content, source_name, active_topics):
             "meta_description": summary_en[:120] + "...",
             "quick_take": quick_take,
             "full_details": full_details,
+            "editorial_article": editorial_en,
             "image_url": image_url
         }
 
@@ -370,7 +446,7 @@ def process_item_with_ai(title, content, source_name, source_url, active_topics)
     Main controller for AI processing.
     Attempts OpenAI, but falls back gracefully and flawlessly to Local Mock AI.
     """
-    system_prompt = """You are an elite aerospace and automotive news aggregator AI.
+    system_prompt = """You are an elite aerospace and automotive news aggregator and lead editorial writer AI.
 Your job is to process, clean, and cluster incoming media articles, YouTube videos, and social posts into structured events.
 Categories have been expanded to include Starlink and SpaceX.
 You must adhere to these strict rules:
@@ -397,6 +473,7 @@ If the item is a new topic, return JSON format:
   "meta_description": "SEO Meta Description (around 80-100 characters summary)",
   "quick_take": "A sharp, exact 1-sentence factual news summary of this first event (English, max 15 words)",
   "full_details": "A detailed explanation paragraph (50-80 words, English) outlining exactly what happened, technical changes, or corporate context.",
+  "editorial_article": "An engaging, original deep-dive editorial analysis article (around 350-500 words, English) written in a premium journalistic, thought-leadership style. Include markdown subheadings (e.g. ## Market Overview, ## Key Takeaways, ## Outlook), analyze what this means, and its long-term industry impact. Do not write 'by AI' or 'by bot'; write as an expert independent editor.",
   "image_url": "The first real image URL found in content, or a high-quality default Tesla image URL"
 }
 
@@ -548,7 +625,6 @@ def fetch_notateslaapp_items():
                 if not href.startswith("http"):
                     full_url = "https://www.notateslaapp.com" + href
                 
-                # Deduplicate multiple links to the same page, keep longest text
                 if full_url not in unique_links or len(title) > len(unique_links[full_url]):
                     unique_links[full_url] = title
                     
@@ -562,15 +638,12 @@ def fetch_notateslaapp_items():
                 detail_resp = requests.get(full_url, headers=HEADERS, timeout=5)
                 if detail_resp.status_code == 200:
                     detail_soup = BeautifulSoup(detail_resp.content, "html.parser")
-                    # Extract og:image
                     meta_img = detail_soup.find("meta", property="og:image") or detail_soup.find("meta", attrs={"name": "twitter:image"})
                     if meta_img and meta_img.get("content"):
                         img_url = meta_img.get("content").strip()
                         
-                    # Extract lead paragraph text
                     paragraphs = [p.get_text().strip() for p in detail_soup.find_all("p") if p.get_text()]
                     if paragraphs:
-                        # Grab the longest/first substantial paragraph
                         for p_text in paragraphs[:3]:
                             if len(p_text) > 80:
                                 content_desc = p_text
@@ -583,7 +656,6 @@ def fetch_notateslaapp_items():
             if not content_desc:
                 content_desc = f"Latest release notes, software features, and analysis regarding {title}."
                 
-            # Default timestamp is now minus a slight offset to preserve order
             timestamp = int(time.time()) - 3600
             
             items.append({
@@ -744,7 +816,6 @@ def sync():
             rejected_count += 1
             continue
             
-        # Deduplication of identical facts across different sources
         topic_id = None
         if result["action"] == "APPEND":
             topic_id = result["topic_id"]
@@ -756,13 +827,12 @@ def sync():
                 ev_text = ev["quick_take"].lower()
                 new_text = result["quick_take"].lower()
                 
-                # Check Jaccard word overlap similarity
                 words_ev = set(re.findall(r'\w+', ev_text))
                 words_new = set(re.findall(r'\w+', new_text))
                 if words_ev and words_new:
                     intersection = words_ev.intersection(words_new)
                     similarity = len(intersection) / min(len(words_ev), len(words_new))
-                    if similarity > 0.65:  # more than 65% overlap in vocabulary
+                    if similarity > 0.65:
                         is_duplicate_fact = True
                         break
             
@@ -773,14 +843,15 @@ def sync():
         if result["action"] == "CREATE":
             try:
                 db.execute("""
-                INSERT INTO topics (title, summary, category, meta_title, meta_description)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO topics (title, summary, category, meta_title, meta_description, editorial_article)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """, (
                     result["title"],
                     result["summary"],
                     result["category"],
                     result["meta_title"],
-                    result["meta_description"]
+                    result["meta_description"],
+                    result.get("editorial_article") or ""
                 ))
                 
                 topic_id_row = db.fetchone("SELECT id FROM topics WHERE title = ?", (result["title"],))
@@ -810,7 +881,6 @@ def sync():
                 print(f"  [Error] Failed to insert topic: {e}")
                     
         elif result["action"] == "APPEND":
-            # If we reached here, it passed the Jaccard similarity check
             final_img = result.get("image_url") or actual_img
             
             db.execute("""
