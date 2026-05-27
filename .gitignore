@@ -1,0 +1,22 @@
+# Node.js
+node_modules/
+.next/
+out/
+build/
+
+# Local databases
+db/*.db
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
+
+# Environments & secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS
+.DS_Store
+Thumbs.db
