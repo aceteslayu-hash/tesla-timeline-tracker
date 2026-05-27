@@ -1,0 +1,5 @@
+requests>=2.30.0
+beautifulsoup4>=4.13.0
+feedparser>=6.0.10
+libsql-client>=0.3.0
+python-dotenv>=1.0.0
