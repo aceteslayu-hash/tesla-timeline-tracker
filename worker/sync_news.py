@@ -121,7 +121,8 @@ class DatabaseAdapter:
             def fetchone(self):
                 return self.rows[0] if self.rows else None
                 
-        last_id = int(result.get("last_insert_rowid", "0"))
+        last_id_val = result.get("last_insert_rowid")
+        last_id = int(last_id_val) if last_id_val is not None else 0
         return LibsqlResult(rows, last_id)
             
     def execute(self, sql, params=None):
