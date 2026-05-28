@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAllTopics } from "@/lib/db";
 import { Clock, Activity, ArrowRight, Tag } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
 
 // Server components cache control - forces dynamic data fetching on each request
 export const revalidate = 0;
@@ -107,7 +108,7 @@ export default async function HomePage({ searchParams }: PageProps) {
           <Tag className="w-4 h-4 text-red-500" />
           <span>Filter by Category</span>
         </div>
-        <div className="flex flex-wrap gap-2 pb-2 border-b border-zinc-900">
+        <div className="flex overflow-x-auto md:flex-wrap gap-2 pb-3 border-b border-zinc-900 scrollbar-none whitespace-nowrap">
           {CATEGORIES.map((cat) => {
             const isActive = activeCategory.toLowerCase() === cat.toLowerCase();
             const href = cat === "All" ? "/" : `/?category=${encodeURIComponent(cat)}`;
@@ -158,11 +159,10 @@ export default async function HomePage({ searchParams }: PageProps) {
               >
                 {/* Image Header with actual og:image crawl fallback */}
                 <div className="aspect-[16/9] w-full overflow-hidden bg-zinc-950 relative border-b border-zinc-800">
-                  <img
+                  <SafeImage
                     src={topic.image_url || "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80"}
                     alt={topic.title}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-100"
-                    loading="lazy"
                   />
                   <div className="absolute top-3 left-3">
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded border ${getCategoryColor(topic.category)} shadow-lg backdrop-blur-sm`}>

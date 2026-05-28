@@ -4,6 +4,7 @@ import time
 import re
 import datetime
 import urllib.parse
+import base64
 from bs4 import BeautifulSoup
 import requests
 import feedparser
@@ -186,6 +187,28 @@ def extract_image_from_content(html_content, default_img=None):
             return src
     return default_img
 
+def fetch_and_convert_to_base64(url):
+    """Downloads the image from URL and converts it to a Base64 Data URL for absolute permanent database inline storage."""
+    if not url:
+        return None
+    try:
+        parsed_url = urllib.parse.urlparse(url)
+        # Skip X/Twitter because of login walls and direct file challenges
+        if "x.com" in parsed_url.netloc or "twitter.com" in parsed_url.netloc:
+            return url
+            
+        print(f"  [Downloader] Saving image locally to Base64: {parsed_url.netloc}...")
+        resp = requests.get(url, headers=HEADERS, timeout=5)
+        if resp.status_code == 200:
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+            encoded = base64.b64encode(resp.content).decode("utf-8")
+            data_url = f"data:{content_type};base64,{encoded}"
+            print(f"  [Downloader] Successfully converted to Base64 Data URL! (Size: {len(data_url)} chars)")
+            return data_url
+    except Exception as e:
+        print(f"  [Downloader] Warning: Failed to download and convert image from {url}: {e}")
+    return url
+
 def fetch_og_image(url):
     """Crawls the original article HTML to extract the authentic og:image."""
     if not url:
@@ -262,7 +285,6 @@ def run_local_mock_ai(title, content, source_name, active_topics):
     """
     text = f"{title} {content}".lower()
     
-    # 1. Reject filter (Noise reduction)
     is_relevant = any(kw in text for kw in ["tesla", "fsd", "autopilot", "musk", "model s", "model x", "model 3", "model y", "cybertruck", "giga", "supercharger", "juniper", "cybercab", "robotaxi", "spacex", "starlink", "starship", "falcon", "satellite", "rocket", "orbit", "video", "software-update"])
     if not is_relevant:
         return "REJECT"
@@ -341,11 +363,9 @@ def run_local_mock_ai(title, content, source_name, active_topics):
             "image_url": image_url
         }
     else:
-        # Create a new topic but use the dynamic quick_take and full_details for its first timeline event
         title_en = "Tesla Technical and Operational Milestone"
         summary_en = "Tesla has achieved major technical milestones recently. Industry analysts point out that Tesla's continuous software iteration, gigafactory output optimizations, and core energy storage scaling have consolidated its leadership position. These milestones highlight the automaker's long-term competitive moat in software development, quick factory adaptation, and supply chain vertical integration."
         
-        # High-quality precompiled original articles for SEO & Deep Analysis (Local Mock Fallback)
         editorial_en = """## Strategic Industry Synthesis
 
 The latest technical updates from Tesla highlight a broader operational philosophy of rapid prototyping and software-defined scaling. By integrating highly responsive feedback loops across its manufacturing facilities, the company has bypassed standard multi-year product development phases common in legacy automotive operations.
@@ -366,7 +386,7 @@ As the energy storage division experiences high double-digit growth, the auto se
 
 SpaceX's ongoing launch campaign for Direct-to-Cell Starlink satellites marks a pivotal shift in telecommunications history. Rather than forcing consumers to purchase specialized satellite communication hardware, this architecture establishes direct links to standard unmodified cellular devices using standard LTE protocols.
 
-## Technical Milestones and Phased Array Technology
+## Technical Execution: Large Phased Array Technology
 
 The low Earth orbit satellites are equipped with highly advanced, large phased array antennas that emulate cellular towers in orbit. Partnering with major terrestrial carriers like T-Mobile, Rogers, and Optus, the space enterprise has demonstrated highly reliable, low-latency SMS transmittals. Upcoming upgrades are set to integrate voice and basic broadband data, bypassing standard line-of-sight terrestrial dead zones.
 
@@ -391,7 +411,7 @@ As NASA maintains its HLS (Human Landing System) lunar program commitments, Star
 """
         elif "fsd" in text:
             title_en = "Tesla Rolls Out Expanded FSD Supervised Software Updates"
-            summary_en = "Tesla's Full Self-Driving (FSD Supervised) system has reached a key milestone with the rollout of its latest end-to-end neural network code. Unlike classical robotics setups with handcoded rules, this system makes decision-making exceptionally fluid, especially at complex intersections, multi-lane roundabouts, and busy pedestrian crossings. This expansion across North American fleets marks a critical inflection point in Tesla's quest for true autonomous driving, boosting market confidence."
+            summary_en = "Tesla's Full Self-Driving (FSD Supervised) system has reached a key milestone with the rollout of its latest end-to-end neural network code. Unlike classical robotics setups with hardcoded rules, this system makes decision-making exceptionally fluid, especially at complex intersections, multi-lane roundabouts, and busy pedestrian crossings. This expansion across North American fleets marks a critical inflection point in Tesla's quest for true autonomous driving, boosting market confidence."
             editorial_en = """## The Shift to End-to-End Neural Networks
 
 Tesla's recent unified FSD software updates represent a major paradigm shift in modern computer vision and robotics. By replacing hundreds of thousands of lines of explicit C++ code with end-to-end neural network models, the vehicle's driving behavior is learned directly from millions of high-quality human driving clips, rather than pre-programmed rules.
@@ -413,7 +433,7 @@ The upcoming Model Y 'Juniper' refresh is one of the most critical product rollo
 
 ## Interior Ergonomics and Manufacturing Innovations
 
-Spy photos indicate that the Juniper refresh will adopt the premium upgrades seen on the Model 3 'Highland' sedan. Expect the complete removal of steering column stalks in favor of steering wheel buttons, double-glazed acoustic glass for an exceptionally quiet cabin, multi-color customizable ambient light strips, and ventilated front seats. Structurally, the vehicle is set to use massive front and rear gigacastings to further cut cost and vehicle weight.
+Spy photos indicate that the Juniper refresh will adopt the premium upgrades seen on the Model 3 'Highland' sedan. Expect the complete removal of steering column stalks in favor of steering wheel buttons, double-glazed acoustic glass for an exceptionally quiet cabin, customizable ambient LED lighting, and ventilated front seats. Structurally, the vehicle is set to use massive front and rear gigacastings to further cut cost and vehicle weight.
 
 ## Power and Efficiency Tuning
 
@@ -444,7 +464,6 @@ As the Cybertruck embarks on popular tours in Asia and Europe, it serves as a po
             "meta_description": summary_en[:120] + "...",
             "quick_take": quick_take,
             "full_details": full_details,
-            "editorial_article": editorial_en,
             "image_url": image_url
         }
 
@@ -453,7 +472,7 @@ def process_item_with_ai(title, content, source_name, source_url, active_topics)
     Main controller for AI processing.
     Attempts OpenAI, but falls back gracefully and flawlessly to Local Mock AI.
     """
-    system_prompt = """You are an elite aerospace and automotive news aggregator and lead editorial writer AI.
+    system_prompt = """You are an elite aerospace and automotive news aggregator AI.
 Your job is to process, clean, and cluster incoming media articles, YouTube videos, and social posts into structured events.
 Categories have been expanded to include Starlink and SpaceX.
 You must adhere to these strict rules:
@@ -480,7 +499,6 @@ If the item is a new topic, return JSON format:
   "meta_description": "SEO Meta Description (around 80-100 characters summary)",
   "quick_take": "A sharp, exact 1-sentence factual news summary of this first event (English, max 15 words)",
   "full_details": "A detailed explanation paragraph (50-80 words, English) outlining exactly what happened, technical changes, or corporate context.",
-  "editorial_article": "An engaging, original deep-dive editorial analysis article (around 350-500 words, English) written in a premium journalistic, thought-leadership style. Include markdown subheadings (e.g. ## Market Overview, ## Key Takeaways, ## Outlook), analyze what this means, and its long-term industry impact. Do not write 'by AI' or 'by bot'; write as an expert independent editor.",
   "image_url": "The first real image URL found in content, or a high-quality default Tesla image URL"
 }
 
@@ -811,12 +829,19 @@ def sync():
             
         print(f"[{index+1}/{len(items)}] Cleaning item: \"{title[:40]}...\" from {source}")
         
+        # Download and convert original image to Base64 to bypass all CORS / Hotlink blocks forever!
         actual_img = img_url
-        if source not in ["X(Twitter)", "Reddit", "YouTube", "Not A Tesla App"]:
+        if source not in ["X(Twitter)", "Reddit", "YouTube"]:
             og_img = fetch_og_image(url)
             if og_img:
                 actual_img = og_img
         
+        # Save actual image as Base64 string for 100% stable offline rendering
+        if actual_img and actual_img.startswith("http"):
+            b64_img = fetch_and_convert_to_base64(actual_img)
+            if b64_img:
+                actual_img = b64_img
+                
         result = process_item_with_ai(title, content, source, url, active_topics)
         
         if result == "REJECT":
@@ -868,6 +893,12 @@ def sync():
                 
                 if topic_id:
                     final_img = result.get("image_url") or actual_img
+                    # Convert event image to base64 if it's external http URL
+                    if final_img and final_img.startswith("http"):
+                        b64_evt_img = fetch_and_convert_to_base64(final_img)
+                        if b64_evt_img:
+                            final_img = b64_evt_img
+                            
                     db.execute("""
                     INSERT INTO timeline_events (topic_id, timestamp, source_name, source_url, image_url, quick_take, full_details)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -891,7 +922,12 @@ def sync():
                     
         elif result["action"] == "APPEND":
             final_img = result.get("image_url") or actual_img
-            
+            # Convert event image to base64 if it's external http URL
+            if final_img and final_img.startswith("http"):
+                b64_evt_img = fetch_and_convert_to_base64(final_img)
+                if b64_evt_img:
+                    final_img = b64_evt_img
+                    
             db.execute("""
             INSERT INTO timeline_events (topic_id, timestamp, source_name, source_url, image_url, quick_take, full_details)
             VALUES (?, ?, ?, ?, ?, ?, ?)

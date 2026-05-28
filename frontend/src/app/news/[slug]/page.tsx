@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTopicBySlug, getTimelineEventsByTopicId } from "@/lib/db";
 import { ArrowLeft, ExternalLink, MessageSquare, Globe, Clock, FileText, Sparkles, BookOpen } from "lucide-react";
 import { Metadata } from "next";
+import SafeImage from "@/components/SafeImage";
 
 // Server components cache control - forces dynamic data fetching on each request
 export const revalidate = 0;
@@ -258,12 +259,10 @@ export default async function NewsDetailPage({ params }: Props) {
                       {/* Cover Photo / Original Scraped Image with no-referrer to bypass hotlink block */}
                       {event.image_url && (
                         <div className="overflow-hidden rounded-lg bg-zinc-950 aspect-[16/9] w-full max-w-2xl border border-zinc-800/80 group-hover:border-zinc-700/80 transition-colors relative">
-                          <img
+                          <SafeImage
                             src={event.image_url}
                             alt="Event Visual"
                             className="h-full w-full object-cover opacity-90 hover:opacity-100 hover:scale-101 transition-all duration-500"
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
                           />
                         </div>
                       )}
