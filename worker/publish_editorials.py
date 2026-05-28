@@ -1,11 +1,18 @@
 import os
 import re
 import sqlite3
+import base64
+import urllib.parse
 import requests
 from dotenv import load_dotenv
 
 # Load env variables
 load_dotenv(dotenv_path="/Users/rio/tesla-timeline-tracker/.env")
+
+# Robust User-Agent
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
 
 def parse_hrana_val(v):
     t = v.get("type")
@@ -119,6 +126,28 @@ def generate_slug(title):
     slug = re.sub(r'[^a-z0-9\s-]', '', slug)
     slug = re.sub(r'[\s-]+', '-', slug)
     return slug
+
+def fetch_and_convert_to_base64(url):
+    """Downloads the image from URL and converts it to a Base64 Data URL for absolute permanent database inline storage."""
+    if not url:
+        return None
+    try:
+        parsed_url = urllib.parse.urlparse(url)
+        # Skip X/Twitter
+        if "x.com" in parsed_url.netloc or "twitter.com" in parsed_url.netloc:
+            return url
+            
+        print(f"  [Downloader] Converting image to Base64: {parsed_url.netloc}...")
+        resp = requests.get(url, headers=HEADERS, timeout=5)
+        if resp.status_code == 200:
+            content_type = resp.headers.get("Content-Type", "image/jpeg")
+            encoded = base64.b64encode(resp.content).decode("utf-8")
+            data_url = f"data:{content_type};base64,{encoded}"
+            print(f"  [Downloader] Converted to Base64 string successfully! (Size: {len(data_url)} chars)")
+            return data_url
+    except Exception as e:
+        print(f"  [Downloader] Warning: Failed to download and convert image from {url}: {e}")
+    return url
 
 # Define the 10 outstanding, EEAT-compliant topics with full detailed blogs and timeline events
 TOPICS_DATA = [
@@ -458,7 +487,7 @@ To achieve this 48V transition, Tesla had to design virtually every microchip, l
         "meta_description": "Tesla expands its Dojo supercomputer cluster, accelerating FSD end-to-end neural network training.",
         "editorial_article": """## Breaking the Monopoly on Custom Silicon
 
-Tesla’s aggressive expansion of its Dojo supercomputer in Buffalo, New York, represents a major strategic move to secure massive AI training capacity. As global demand for AI graphics chips remains extremely tight, Dojo allows Tesla to break its reliance on external silicon providers, building a highly customized, in-house computing cluster optimized specifically for video processing.
+Tesla’s aggressive expansion of its Dojo supercomputer in Buffalo, New York, represents a major strategic move to secure AI training capacity. As global demand for AI graphics chips remains extremely tight, Dojo allows Tesla to break its reliance on external silicon providers, building a highly customized, in-house computing cluster optimized specifically for video processing.
 
 ## The D1 Chip: Optimized for Video Training
 
@@ -536,11 +565,12 @@ Opening the network transforms Tesla's charging segment into a highly lucrative,
 
 def publish():
     print("=========================================")
-    print("Starting Cloud Database Publication with SEO Slugs and REAL Outbound Links...")
+    print("Starting Cloud Database Publication with SEO Slugs, Base64 Images, and REAL Outbound Links...")
     print("=========================================")
     
     db = DatabaseAdapter()
     
+    # Empty tables
     db.execute("DELETE FROM timeline_events")
     db.execute("DELETE FROM topics")
     
@@ -572,6 +602,13 @@ def publish():
                 inserted_topics += 1
                 
                 for ev in t["events"]:
+                    # Convert event cover photo to base64 to completely eliminate broken images!
+                    img_base64 = ev["image_url"]
+                    if img_base64.startswith("http"):
+                        b64 = fetch_and_convert_to_base64(img_base64)
+                        if b64:
+                            img_base64 = b64
+                            
                     db.execute("""
                     INSERT INTO timeline_events (topic_id, timestamp, source_name, source_url, image_url, quick_take, full_details)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -580,7 +617,7 @@ def publish():
                         ev["timestamp"],
                         ev["source_name"],
                         ev["source_url"],
-                        ev["image_url"],
+                        img_base64,
                         ev["quick_take"],
                         ev["full_details"]
                     ))
@@ -593,7 +630,7 @@ def publish():
     db.close()
     print("\n=========================================")
     print("Publication Complete!")
-    print(f"Successfully published {inserted_topics} premium SEO-friendly topics with REAL links.")
+    print(f"Successfully published {inserted_topics} premium topics with Base64 Images & REAL links.")
     print(f"Successfully published {inserted_events} timeline events.")
     print("=========================================")
 

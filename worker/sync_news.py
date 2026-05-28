@@ -198,7 +198,7 @@ def fetch_and_convert_to_base64(url):
             return url
             
         print(f"  [Downloader] Saving image locally to Base64: {parsed_url.netloc}...")
-        resp = requests.get(url, headers=HEADERS, timeout=5)
+        resp = requests.get(url, headers=HEADERS, timeout=3)
         if resp.status_code == 200:
             content_type = resp.headers.get("Content-Type", "image/jpeg")
             encoded = base64.b64encode(resp.content).decode("utf-8")
@@ -219,7 +219,7 @@ def fetch_og_image(url):
             return None
             
         print(f"  [Crawler] Crawling original page for og:image: {parsed_url.netloc}...")
-        resp = requests.get(url, headers=HEADERS, timeout=5)
+        resp = requests.get(url, headers=HEADERS, timeout=3)
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.content, "html.parser")
             meta_img = (
@@ -540,7 +540,7 @@ def fetch_rss_items():
     for source, url in RSS_FEEDS.items():
         print(f"Fetching RSS from {source}: {url} ...")
         try:
-            resp = requests.get(url, headers=HEADERS, timeout=10)
+            resp = requests.get(url, headers=HEADERS, timeout=3)
             if resp.status_code != 200:
                 print(f"Failed to fetch {source} feed (HTTP {resp.status_code})")
                 continue
@@ -587,7 +587,7 @@ def fetch_youtube_items():
     for source, url in YOUTUBE_CHANNELS.items():
         print(f"Fetching YouTube Feed for {source}... ")
         try:
-            resp = requests.get(url, headers=HEADERS, timeout=10)
+            resp = requests.get(url, headers=HEADERS, timeout=3)
             if resp.status_code != 200:
                 print(f"Failed to fetch {source} YouTube feed (HTTP {resp.status_code})")
                 continue
@@ -634,7 +634,7 @@ def fetch_notateslaapp_items():
     url = "https://www.notateslaapp.com/fsd-beta/"
     print(f"Scraping Not A Tesla App from {url}...")
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=10)
+        resp = requests.get(url, headers=HEADERS, timeout=3)
         if resp.status_code != 200:
             print(f"Failed to fetch Not A Tesla App (HTTP {resp.status_code})")
             return items
@@ -660,7 +660,7 @@ def fetch_notateslaapp_items():
             content_desc = ""
             img_url = None
             try:
-                detail_resp = requests.get(full_url, headers=HEADERS, timeout=5)
+                detail_resp = requests.get(full_url, headers=HEADERS, timeout=2)
                 if detail_resp.status_code == 200:
                     detail_soup = BeautifulSoup(detail_resp.content, "html.parser")
                     meta_img = detail_soup.find("meta", property="og:image") or detail_soup.find("meta", attrs={"name": "twitter:image"})
@@ -707,7 +707,7 @@ def fetch_twitter_items():
         rsshub_url = f"https://rsshub.app/twitter/user/{handle}"
         try:
             print(f"Trying RSSHub for X user @{handle}...")
-            resp = requests.get(rsshub_url, headers=HEADERS, timeout=8)
+            resp = requests.get(rsshub_url, headers=HEADERS, timeout=2)
             if resp.status_code == 200:
                 feed = feedparser.parse(resp.content)
                 for entry in feed.entries[:5]:
@@ -809,6 +809,15 @@ def sync():
     
     items.sort(key=lambda x: x["timestamp"])
     
+    # Filter items to only keep extremely fresh ones (last 12 hours) and cap at latest 5
+    cutoff_time = int(time.time()) - (12 * 3600)
+    fresh_items = [x for x in items if x["timestamp"] >= cutoff_time]
+    if len(fresh_items) > 5:
+        fresh_items = fresh_items[-5:]
+    if not fresh_items and items:
+        fresh_items = items[-3:]
+    items = fresh_items
+    
     print(f"\nProcessing {len(items)} news, video & social items...")
     
     created_count = 0
@@ -875,52 +884,60 @@ def sync():
         if result["action"] == "CREATE":
             try:
                 slug = generate_slug(result["title"])
-                db.execute("""
-                INSERT INTO topics (slug, title, summary, category, meta_title, meta_description, editorial_article)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    slug,
-                    result["title"],
-                    result["summary"],
-                    result["category"],
-                    result["meta_title"],
-                    result["meta_description"],
-                    result.get("editorial_article") or ""
-                ))
                 
-                topic_id_row = db.fetchone("SELECT id FROM topics WHERE slug = ?", (slug,))
-                topic_id = topic_id_row["id"] if topic_id_row else None
-                
-                if topic_id:
-                    final_img = result.get("image_url") or actual_img
-                    # Convert event image to base64 if it's external http URL
-                    if final_img and final_img.startswith("http"):
-                        b64_evt_img = fetch_and_convert_to_base64(final_img)
-                        if b64_evt_img:
-                            final_img = b64_evt_img
-                            
+                # Check if a topic with this exact title or slug already exists to prevent UNIQUE violations
+                existing_topic = db.fetchone("SELECT id FROM topics WHERE title = ? OR slug = ?", (result["title"], slug))
+                if existing_topic:
+                    topic_id = existing_topic["id"]
+                    print(f"  -> Found existing topic matching \"{result['title']}\" (ID: {topic_id}). Re-routing to APPEND.")
+                    result["action"] = "APPEND"
+                else:
                     db.execute("""
-                    INSERT INTO timeline_events (topic_id, timestamp, source_name, source_url, image_url, quick_take, full_details)
+                    INSERT INTO topics (slug, title, summary, category, meta_title, meta_description, editorial_article)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
-                        topic_id,
-                        ts,
-                        source,
-                        url,
-                        final_img,
-                        result["quick_take"],
-                        result.get("full_details") or result["quick_take"]
+                        slug,
+                        result["title"],
+                        result["summary"],
+                        result["category"],
+                        result["meta_title"],
+                        result["meta_description"],
+                        result.get("editorial_article") or ""
                     ))
-                    db.commit()
-                    print(f"  -> Created NEW topic: \"{result['title']}\" (ID: {topic_id})")
-                    created_count += 1
                     
-                    active_topics = get_recent_topics(db)
+                    topic_id_row = db.fetchone("SELECT id FROM topics WHERE slug = ?", (slug,))
+                    topic_id = topic_id_row["id"] if topic_id_row else None
+                    
+                    if topic_id:
+                        final_img = result.get("image_url") or actual_img
+                        # Convert event image to base64 if it's external http URL
+                        if final_img and final_img.startswith("http"):
+                            b64_evt_img = fetch_and_convert_to_base64(final_img)
+                            if b64_evt_img:
+                                final_img = b64_evt_img
+                                
+                        db.execute("""
+                        INSERT INTO timeline_events (topic_id, timestamp, source_name, source_url, image_url, quick_take, full_details)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            topic_id,
+                            ts,
+                            source,
+                            url,
+                            final_img,
+                            result["quick_take"],
+                            result.get("full_details") or result["quick_take"]
+                        ))
+                        db.commit()
+                        print(f"  -> Created NEW topic: \"{result['title']}\" (ID: {topic_id})")
+                        created_count += 1
+                        
+                        active_topics = get_recent_topics(db)
                 
             except Exception as e:
                 print(f"  [Error] Failed to insert topic: {e}")
                     
-        elif result["action"] == "APPEND":
+        if result["action"] == "APPEND":
             final_img = result.get("image_url") or actual_img
             # Convert event image to base64 if it's external http URL
             if final_img and final_img.startswith("http"):
