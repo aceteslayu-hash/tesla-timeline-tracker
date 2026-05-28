@@ -248,6 +248,13 @@ def call_llm(system_prompt, user_prompt):
         print(f"LLM request exception: {e}")
         return None
 
+def generate_slug(title):
+    """Generates an SEO-friendly URL slug from an article title."""
+    slug = title.lower().strip()
+    slug = re.sub(r'[^a-z0-9\s-]', '', slug)
+    slug = re.sub(r'[\s-]+', '-', slug)
+    return slug
+
 def run_local_mock_ai(title, content, source_name, active_topics):
     """
     Highly sophisticated local NLP classifier fallback (English Version).
@@ -842,10 +849,12 @@ def sync():
 
         if result["action"] == "CREATE":
             try:
+                slug = generate_slug(result["title"])
                 db.execute("""
-                INSERT INTO topics (title, summary, category, meta_title, meta_description, editorial_article)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO topics (slug, title, summary, category, meta_title, meta_description, editorial_article)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
+                    slug,
                     result["title"],
                     result["summary"],
                     result["category"],
@@ -854,7 +863,7 @@ def sync():
                     result.get("editorial_article") or ""
                 ))
                 
-                topic_id_row = db.fetchone("SELECT id FROM topics WHERE title = ?", (result["title"],))
+                topic_id_row = db.fetchone("SELECT id FROM topics WHERE slug = ?", (slug,))
                 topic_id = topic_id_row["id"] if topic_id_row else None
                 
                 if topic_id:
