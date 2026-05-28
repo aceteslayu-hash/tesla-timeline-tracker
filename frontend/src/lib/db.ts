@@ -47,8 +47,7 @@ export interface TimelineEvent {
 export async function getAllTopics(): Promise<Topic[]> {
   const query = `
     SELECT t.*, 
-           COUNT(e.id) as event_count,
-           (SELECT image_url FROM timeline_events WHERE topic_id = t.id ORDER BY timestamp DESC LIMIT 1) as image_url
+           COUNT(e.id) as event_count
     FROM topics t
     LEFT JOIN timeline_events e ON t.id = e.topic_id
     GROUP BY t.id
@@ -91,6 +90,7 @@ export async function getTopicBySlug(slug: string): Promise<Topic | null> {
     editorial_article: row.editorial_article ? String(row.editorial_article) : "",
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
+    image_url: row.image_url ? String(row.image_url) : undefined,
   };
 }
 

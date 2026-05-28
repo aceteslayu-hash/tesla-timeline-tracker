@@ -310,23 +310,35 @@ def run_local_mock_ai(title, content, source_name, active_topics):
     elif any(kw in text for kw in ["ai", "optimus", "chip", "dojo", "supercomputer"]):
         category = "New Tech"
 
-    # 3. Topic Matching (48h Clustering)
+    # 3. Topic Matching (48h Clustering via Multi-Entity Intersection)
     matched_topic_id = None
     for topic in active_topics:
         t_title = topic["title"].lower()
         t_summary = topic["summary"].lower()
         
-        keywords = []
-        if "fsd" in text: keywords.append("fsd")
-        if "juniper" in text: keywords.append("juniper")
-        if "cybertruck" in text: keywords.append("cybertruck")
-        if "spacex" in text: keywords.append("spacex")
-        if "starlink" in text: keywords.append("starlink")
-        if "supercharger" in text: keywords.append("supercharger")
-        
-        if keywords and any(kw in t_title or kw in t_summary for kw in keywords):
-            matched_topic_id = topic["id"]
-            break
+        # Check for highly specific matching entity groups
+        entities = []
+        if "fsd" in text and ("v14" in text or "v12" in text or "v13" in text or "end-to-end" in text or "supervised" in text or "assisted" in text):
+            entities = ["fsd", "v14", "v12", "v13", "end-to-end", "supervised", "assisted"]
+        elif "juniper" in text or ("model y" in text and "refresh" in text):
+            entities = ["juniper", "model y", "refresh"]
+        elif "cybertruck" in text and ("48v" in text or "steer" in text or "wire" in text or "voltage" in text):
+            entities = ["cybertruck", "48v", "steer", "wire", "voltage"]
+        elif "starship" in text or "flight 12" in text or "booster" in text or "catch" in text:
+            entities = ["starship", "flight 12", "booster", "catch"]
+        elif "direct-to-cell" in text or "cellular" in text or "satellite" in text or "starlink" in text:
+            entities = ["direct-to-cell", "cellular", "satellite", "starlink"]
+        elif "megapack" in text or "storage" in text or "lathrop" in text or "battery" in text or "grid" in text:
+            entities = ["megapack", "storage", "energy", "lathrop", "battery", "grid"]
+        elif "optimus" in text or "humanoid" in text or "robot" in text:
+            entities = ["optimus", "humanoid", "robot"]
+            
+        if entities:
+            # If the topic title or summary contains at least two of these matching entities, it's a true semantic cluster match!
+            matches = [ent in t_title or ent in t_summary for ent in entities]
+            if sum(matches) >= 2:
+                matched_topic_id = topic["id"]
+                break
 
     # 4. Dynamic Content Cleaning (Factual Rephraser based on Real Article Content)
     img_urls = re.findall(r'https?://[^\s<>"]+\.(?:png|jpg|jpeg|webp)', content)
@@ -893,8 +905,8 @@ def sync():
                     result["action"] = "APPEND"
                 else:
                     db.execute("""
-                    INSERT INTO topics (slug, title, summary, category, meta_title, meta_description, editorial_article)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO topics (slug, title, summary, category, meta_title, meta_description, editorial_article, image_url)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         slug,
                         result["title"],
@@ -902,7 +914,8 @@ def sync():
                         result["category"],
                         result["meta_title"],
                         result["meta_description"],
-                        result.get("editorial_article") or ""
+                        result.get("editorial_article") or "",
+                        actual_img
                     ))
                     
                     topic_id_row = db.fetchone("SELECT id FROM topics WHERE slug = ?", (slug,))
